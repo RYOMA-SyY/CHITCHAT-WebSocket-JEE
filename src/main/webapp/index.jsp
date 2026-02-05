@@ -236,6 +236,8 @@
                 <div id="gif-picker">
                     <span class="close-gif" onclick="toggleGifPicker()">&times;</span>
                     <div style="margin-bottom: 10px; font-weight: bold; color: #555;">Pick a GIF</div>
+                    <input type="text" id="gif-search-input" placeholder="Search GIFs... (Enter)"
+                        onkeypress="handleGifSearch(event)">
                     <div class="gif-grid" id="gif-grid"></div>
                 </div>
             </div>
