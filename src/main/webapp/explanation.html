@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Application Logic Explanation</title>
+    <style>
+        body {
+            background-color: #0d1b2a;
+            /* Dark Blue */
+            color: #ffffff;
+            /* White */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 40px;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #e0e1dd;
+            border-bottom: 1px solid #415a77;
+            padding-bottom: 10px;
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background-color: #1b263b;
+            padding: 2px 5px;
+            border-radius: 4px;
+            color: #a8dadc;
+        }
+
+        pre {
+            background-color: #1b263b;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid #415a77;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            background-color: #162235;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .concept {
+            margin-bottom: 20px;
+        }
+
+        .concept-title {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #89c2d9;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Chat Application Logic Breakdown</h1>
+    <p>This document details the internal workings of the WebSocket Chat Application. It focuses purely on the Java
+        (Server) and JavaScript (Client) logic, excluding UI/CSS details.</p>
+
+    <!-- SERVER SIDE SECTION -->
+    <div class="section">
+        <h2>1. Server-Side Logic (ChatEndpoint.java)</h2>
+        <p>The core of the application relies on the Jakarta EE WebSocket API. The server acts as a central hub that
+            manages connections and broadcasts messages.</p>
+
+        <div class="concept">
+            <div class="concept-title">1. The Endpoint Annotation</div>
+            <p><code>@ServerEndpoint("/chat")</code></p>
+            <p>This annotation tells the server (Tomcat) that this Java class is a WebSocket server. It listens
+                specifically on the URL path <code>/chat</code>. Any connection to <code>ws://domain/App/chat</code> is
+                routed here.</p>
+        </div>
+
+        <div class="concept">
+            <div class="concept-title">2. Managing Sessions (Connections)</div>
+            <pre><code>private static final Set&lt;Session&gt; sessions = Collections.synchronizedSet(new HashSet&lt;&gt;());</code></pre>
+            <p>We use a <code>static</code> Set to store every active user connection (Session). It is static so that it
+                is shared across all instances of the class (global state). We use
+                <code>Collections.synchronizedSet</code> to ensure "Thread Safety"—preventing errors when two users join
+                close to the exact same time.</p>
+        </div>
+
+        <div class="concept">
+            <div class="concept-title">3. Message History (In-Memory)</div>
+            <pre><code>private static final LinkedList&lt;String&gt; messageHistory = new LinkedList&lt;&gt;();</code></pre>
+            <p>We store the last 50 messages in a simple Java List within the memory (RAM). This acts as a temporary
+                database. When the list exceeds 50 items, we remove the oldest one (<code>removeFirst()</code>) before
+                adding the new one.</p>
+        </div>
+
+        <div class="concept">
+            <div class="concept-title">4. Connection Lifecycle Events</div>
+            <ul>
+                <li><strong>@OnOpen:</strong> Triggered when a client connects.
+                    <ul>
+                        <li>Adds the session to the valid <code>sessions</code> list.</li>
+                        <li>Immediately loops through <code>messageHistory</code> and sends all past messages to this
+                            <em>specific</em> new user so they are caught up.</li>
+                    </ul>
+                </li>
+                <li><strong>@OnMessage:</strong> Triggered when the server receives a message.
+                    <ul>
+                        <li><strong>Rate Limit Check:</strong> Checks a map of timestamps to see if this user sent > 5
+                            messages in 5 seconds. If yes, it sends a private "System Alert" back and aborts.</li>
+                        <li><strong>History:</strong> If allowed, the message is added to <code>messageHistory</code>.
+                        </li>
+                        <li><strong>Broadcast:</strong> The message is sent to ALL active sessions in the
+                            <code>sessions</code> set.</li>
+                    </ul>
+                </li>
+                <li><strong>@OnClose:</strong> Triggered when a user disconnects. Removes them from the lists to stop
+                    trying to send them messages.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- CLIENT SIDE SECTION -->
+    <div class="section">
+        <h2>2. Client-Side Logic (JavaScript)</h2>
+        <p>The client runs in the browser and manages the bidirectional communication with the server.</p>
+
+        <div class="concept">
+            <div class="concept-title">1. Connecting to the Server</div>
+            <pre><code>var protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+var wsUrl = protocol + host + contextPath + "/chat";
+ws = new WebSocket(wsUrl);</code></pre>
+            <p>The code dynamically builds the WebSocket URL. It checks if you are on HTTP or HTTPS and switches to WS
+                or WSS (Secure WebSocket) accordingly. It then opens a persistent connection to the server.</p>
+        </div>
+
+        <div class="concept">
+            <div class="concept-title">2. Handling Events</div>
+            <ul>
+                <li><strong>ws.onopen:</strong> Runs when the connection succeeds. We update the UI to show "Connected"
+                    and enable the input fields.</li>
+                <li><strong>ws.onmessage:</strong> The most crucial function. It runs whenever data arrives from the
+                    server.
+                    <ul>
+                        <li>It reads <code>event.data</code> (the text sent by Java).</li>
+                        <li>It checks for special prefixes like <code>System: 🚫</code> to show alerts.</li>
+                        <li>It parses standard messages <code>Username: Message</code>.</li>
+                        <li>It detects special flags like <code>[GIF]</code> or image extensions (png, jpg) and renders
+                            an <code>&lt;img&gt;</code> tag instead of plain text.</li>
+                    </ul>
+                </li>
+                <li><strong>ws.onclose:</strong> Runs if the server kicks us off or the internet drops. We disable all
+                    buttons to prevent errors.</li>
+            </ul>
+        </div>
+
+        <div class="concept">
+            <div class="concept-title">3. GIF Search Logic (Tenor API)</div>
+            <pre><code>fetch("https://g.tenor.com/v1/search?q=" + query + ... )</code></pre>
+            <p>This is a standard HTTP REST call, not WebSocket.</p>
+            <ul>
+                <li>We take the user's search text.</li>
+                <li>We call Tenor's public API URL.</li>
+                <li>When the JSON data comes back, we loop through the results and create clickable image elements.</li>
+                <li>Clicking an image calls <code>sendGif(url)</code>, which sends a special text message:
+                    <code>User: [GIF]https://...</code>.</li>
+            </ul>
+        </div>
+    </div>
+
+</body>
+
+</html>

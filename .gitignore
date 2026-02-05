@@ -1,0 +1,12 @@
+
+# Maven
+target/
+*.war
+
+# Eclipse
+build/
+bin/
+
+# OS
+.DS_Store
+Thumbs.db
