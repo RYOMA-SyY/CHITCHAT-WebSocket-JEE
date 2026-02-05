@@ -451,19 +451,51 @@
                 var div = document.createElement("div");
                 div.className = "message";
 
-                var contentHtml = text;
+                // 1. Sanitize inputs to prevent XSS (Security Fix)
+                var safeUser = escapeHtml(user);
+                var safeText = escapeHtml(text);
 
+                var contentHtml = safeText;
+
+                // 2. Handle GIFs/Images (only allow safe URLs)
                 if (text.startsWith("[GIF]")) {
                     var url = text.substring(5);
-                    contentHtml = '<br><img src="' + url + '" class="chat-image">';
+                    // Simple check to ensure it's a URL and not a script
+                    if (isValidUrl(url)) {
+                        contentHtml = '<br><img src="' + escapeHtml(url) + '" class="chat-image">';
+                    } else {
+                        contentHtml = " [Invalid GIF URL]";
+                    }
                 }
                 else if (text.match(/\.(jpeg|jpg|gif|png)$/) != null) {
-                    contentHtml = '<br><img src="' + text + '" class="chat-image">';
+                    if (isValidUrl(text)) {
+                        contentHtml = '<br><img src="' + escapeHtml(text) + '" class="chat-image">';
+                    }
                 }
 
-                div.innerHTML = "<strong>" + user + "</strong> " + contentHtml;
+                div.innerHTML = "<strong>" + safeUser + "</strong> " + contentHtml;
                 chatContainer.appendChild(div);
                 chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+            }
+
+            // Security Helper: Prevent HTML Injection
+            function escapeHtml(text) {
+                if (!text) return text;
+                return text
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+            function isValidUrl(string) {
+                try {
+                    new URL(string);
+                    return true;
+                } catch (_) {
+                    return false;
+                }
             }
 
             messageInput.addEventListener("keypress", function (event) {
