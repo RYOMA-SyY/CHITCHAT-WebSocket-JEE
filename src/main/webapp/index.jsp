@@ -246,7 +246,7 @@
             <a href="explanation.html" target="_blank" style="text-decoration: none;">
                 <button
                     style="background-color: #0d1b2a; color: white; padding: 10px 20px; border-radius: 20px; border: none; cursor: pointer; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-                    📖 Documentation | Made by <strong>Riyoma</strong>
+                     Documentation | Made by <strong>Riyoma</strong>
                 </button>
             </a>
         </div>
@@ -370,7 +370,7 @@
                 ws.onmessage = function (event) {
                     var msg = event.data;
                     // Check if it's a rate limit system message
-                    if (msg.startsWith("System: 🚫")) {
+                    if (msg.startsWith("System: ")) {
                         alert(msg.replace("System: ", ""));
                         return;
                     }
