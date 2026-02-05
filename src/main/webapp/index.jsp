@@ -246,7 +246,7 @@
             <a href="explanation.html" target="_blank" style="text-decoration: none;">
                 <button
                     style="background-color: #0d1b2a; color: white; padding: 10px 20px; border-radius: 20px; border: none; cursor: pointer; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-                     Documentation | Made by <strong>Riyoma</strong>
+                    Documentation | Made by <strong>Riyoma</strong>
                 </button>
             </a>
         </div>
@@ -364,6 +364,10 @@
                     connectBtn.style.display = "none";
                     disconnectBtn.style.display = "inline-block";
                     usernameInput.disabled = true;
+
+                    // Clear existing chat to avoid duplicates when receiving history
+                    chatContainer.innerHTML = "";
+
                     addMessage("System", "You have joined the chat.");
                 };
 
